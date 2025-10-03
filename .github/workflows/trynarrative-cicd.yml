@@ -12,7 +12,7 @@ jobs:
       - name: Trigger remote tests & wait
         env:
           TRYNARRATIVE_API_TOKEN: ${{ secrets.TRYNARRATIVE_API_TOKEN }}
-          SERVICE_URL: https://backend-staging.trynarrative.com
+          SERVICE_URL: https://backend-web-staging.trynarrative.com
         run: |
           # 1) Read and base64-encode your YAML
           cfg=$(base64 -w0 < trynarrative.yml)
@@ -25,40 +25,17 @@ jobs:
                 "commit": "'"${{ github.sha }}"'",
                 "config": "'"$cfg"'"
               }')
-          
-          # Check if the response is valid JSON and extract run_id
-          echo "API Response: $resp"
-          if echo "$resp" | jq -e . >/dev/null 2>&1; then
-            run_id=$(echo "$resp" | jq -r .run_id)
-            if [ "$run_id" = "null" ] || [ -z "$run_id" ]; then
-              echo "❌ No run_id found in response"
-              echo "Full response: $resp"
-              exit 1
-            fi
-            echo "👉 Test run ID is $run_id"
-          else
-            echo "❌ Invalid JSON response from API"
-            echo "Response: $resp"
-            exit 1
-          fi
+          run_id=$(echo "$resp" | jq -r .run_id)
+          echo "👉 Test run ID is $run_id"
           # 3) Poll status up to 5 minutes
           for i in {1..30}; do
-            status_resp=$(curl -s $SERVICE_URL/api/v1/cicd/github/runs/$run_id/status)
-            if echo "$status_resp" | jq -e . >/dev/null 2>&1; then
-              status=$(echo "$status_resp" | jq -r .status)
-              echo "Status: $status"
-              if [ "$status" = "success" ]; then
-                echo "✅ Tests passed!"
-                exit 0
-              fi
-              
-              if [ "$status" = "failed" ]; then
-                echo "❌ Tests failed!"
-                exit 1
-              fi
-            else
-              echo "❌ Invalid JSON response when checking status"
-              echo "Response: $status_resp"
+            status=$(curl -s $SERVICE_URL/api/v1/cicd/github/runs/$run_id/status | jq -r .status)
+            echo "Status: $status"
+            if [ "$status" = "success" ]; then
+              exit 0
+            fi
+            
+            if [ "$status" = "failed" ]; then
               exit 1
             fi
             sleep 10
