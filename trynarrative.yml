@@ -1,11 +1,6 @@
 # ────────────────────────────────────────────────
 # A list of individual tests to run.
 # Each item must include `id`. `name` is optional.
-tests:
-  - id: 68dd1ddbd4d056eaf8aa72d1
-# ────────────────────────────────────────────────
-# A list of test suites to run.
-# Same requirement: id is required. name is optional.
 test_suites:
   - id: 68df844dfccc7acbb23e1fab
   - id: 68df9c5206fb7d564c43d96e
