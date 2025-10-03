@@ -25,17 +25,40 @@ jobs:
                 "commit": "'"${{ github.sha }}"'",
                 "config": "'"$cfg"'"
               }')
-          run_id=$(echo "$resp" | jq -r .run_id)
-          echo "👉 Test run ID is $run_id"
+          
+          # Check if the response is valid JSON and extract run_id
+          echo "API Response: $resp"
+          if echo "$resp" | jq -e . >/dev/null 2>&1; then
+            run_id=$(echo "$resp" | jq -r .run_id)
+            if [ "$run_id" = "null" ] || [ -z "$run_id" ]; then
+              echo "❌ No run_id found in response"
+              echo "Full response: $resp"
+              exit 1
+            fi
+            echo "👉 Test run ID is $run_id"
+          else
+            echo "❌ Invalid JSON response from API"
+            echo "Response: $resp"
+            exit 1
+          fi
           # 3) Poll status up to 5 minutes
           for i in {1..30}; do
-            status=$(curl -s $SERVICE_URL/api/v1/cicd/github/runs/$run_id/status | jq -r .status)
-            echo "Status: $status"
-            if [ "$status" = "success" ]; then
-              exit 0
-            fi
-            
-            if [ "$status" = "failed" ]; then
+            status_resp=$(curl -s $SERVICE_URL/api/v1/cicd/github/runs/$run_id/status)
+            if echo "$status_resp" | jq -e . >/dev/null 2>&1; then
+              status=$(echo "$status_resp" | jq -r .status)
+              echo "Status: $status"
+              if [ "$status" = "success" ]; then
+                echo "✅ Tests passed!"
+                exit 0
+              fi
+              
+              if [ "$status" = "failed" ]; then
+                echo "❌ Tests failed!"
+                exit 1
+              fi
+            else
+              echo "❌ Invalid JSON response when checking status"
+              echo "Response: $status_resp"
               exit 1
             fi
             sleep 10
